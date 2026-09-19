@@ -52,3 +52,25 @@ error.
 | `two_year_recid` | binary | **target** -- was this person rearrested within two years? | `0` = no, `1` = yes |
 
 Source: derived from [propublica/compas-analysis](https://github.com/propublica/compas-analysis) (the data behind the "Machine Bias" investigation). Personally-identifying columns (name, date of birth, case numbers, charge descriptions) were removed.
+
+
+# Week 1
+
+These were the models created:
+* **Logistic Regression:** with parameters `{'max_iter': 1000}`
+* **Decision Tree:** without specific parameters
+
+### Metrics Comparison
+
+| Model | Train Accuracy | Test Accuracy | Gap (Train - Test) |
+| :--- | :--- | :--- | :--- |
+| **Logistic Regression** | 67.8% | 67.9% | -0.001 |
+| **Decision Tree** | 82.9% | 62.8% | +0.201 |
+
+### The main differences:
+
+- In the **logistic regression** model, it achieved a better accuracy (68%). It is very stable because the training (67.8%) and testing (67.9%) scores are almost identical. This means it learned the patterns correctly without just memorizing the data.
+- The **decision tree** model achieved a lower overall accuracy (63%). This model "memorized" the training data (scoring 82.9%) but performed poorly on new data (62.8%). This indicates overfitting. However, it did show a slightly smaller gap in false positive rates between the main racial groups.
+
+**In summary:**
+The logistic regression model was better. Even though the decision tree has slightly more balanced numbers regarding race, the fact that it overfitted makes it unreliable for real-world scenarios. The logistic regression is much more robust, consistent, and makes more accurate predictions on new cases.
