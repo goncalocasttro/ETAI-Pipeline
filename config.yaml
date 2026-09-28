@@ -5,16 +5,71 @@ data:
   path: "data/compas_two_year_recidivism.csv"
   target: "two_year_recid"
   sensitive_attr: "race"          # excluded from model features, used only to audit fairness
-  drop_columns: ["id", "decile_score", "score_text"]  # identifiers / COMPAS's own score, not our model's inputs
+  # id/COMPAS's-own-score dropped as before, plus the three columns week 3's multicollinearity
+  # check found redundant (see src/data_diagnostics.py + the EDA notebook's VIF walkthrough)
+  drop_columns: ["id", "decile_score", "score_text", "prior_offenses", "age_in_months", "juvenile_total"]
 
 split:
   test_size: 0.2
   random_state: 42
 
+# New this week (see Practical/W3/notebooks/01_eda_introduction.ipynb): what src/data_diagnostics.py
+# and src/preprocessing.py need to stay generic instead of hardcoding COMPAS's column names.
+diagnostics:
+  id_column: "id"
+  candidate_predictors: ["sex", "race", "age_cat", "c_charge_degree", "score_text"]
+  # columns that load as text purely because a placeholder token (see placeholder_tokens below)
+  # shows up somewhere in them
+  numeric_text_columns: ["priors_count", "prior_offenses"]
+  placeholder_tokens: ["-", "?", "n/a", "N/A", "na", "NA", ""]
+  validity_rules:
+    age: {min: 18, max: 100}
+    decile_score: {min: 1, max: 10}
+    juv_fel_count: {min: 0}
+    priors_count: {min: 0, max: 60}
+  canonical_categories:
+    sex:
+      male: "Male"
+      female: "Female"
+    race:
+      african-american: "African-American"
+      african american: "African-American"
+      caucasian: "Caucasian"
+      hispanic: "Hispanic"
+      other: "Other"
+      asian: "Asian"
+      native american: "Native American"
+    c_charge_degree:
+      f: "F"
+      felony: "F"
+      m: "M"
+      misdemeanor: "M"
+    score_text:
+      low: "Low"
+      medium: "Medium"
+      high: "High"
+  # multicollinearity casualties (see the EDA notebook's correlation heatmap + VIF section) --
+  # also listed in data.drop_columns above; kept here too so preprocessing.py doesn't need
+  # to reach into the data: section to know what to drop
+  redundant_columns: ["prior_offenses", "age_in_months", "juvenile_total"]
+
+# New this week (see Practical/W3/notebooks/02_preprocessing.ipynb): this week's diagnosis-driven,
+# leak-safe preprocessing recipe. encoder/scaler chosen by the empirical grid in that notebook --
+# don't hand-pick a different pair here without re-running the grid.
+preprocessing:
+  encoder: "target"      # winner of the 4x4 empirical grid (onehot/ordinal/count/target x none/standard/minmax/robust),
+  scaler: "standard"     # scored on accuracy across 15 repeated splits -- see 02_preprocessing.ipynb's grid + paired check
+  numeric_features: ["age", "juv_fel_count", "juv_misd_count", "juv_other_count", "priors_count"]
+  categorical_features: ["sex", "age_cat", "c_charge_degree"]
+  mnar_indicator_sources: ["priors_count", "c_charge_degree"]
+  imputation:
+    numeric_strategy: "median"        # applies to age, juv_fel_count, juv_misd_count, juv_other_count, priors_count
+    categorical_strategy: "most_frequent"   # applies to sex, age_cat, c_charge_degree
+
 model:
-  type: "logistic_regression"   # or "decision_tree"
-  params:
-    max_iter: 1000
+  type: "decision_tree"   # or "logistic_regression"
+  params: {}
+    # max_iter: 2000
 
 output:
   results_dir: "results"   # each run's full report is saved here as a timestamped .txt file

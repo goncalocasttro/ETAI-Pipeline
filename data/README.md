@@ -74,3 +74,25 @@ These were the models created:
 
 **In summary:**
 The logistic regression model was better. Even though the decision tree has slightly more balanced numbers regarding race, the fact that it overfitted makes it unreliable for real-world scenarios. The logistic regression is much more robust, consistent, and makes more accurate predictions on new cases.
+
+
+# Week 2
+
+These were the models created:
+* **Logistic Regression:** with parameters `{'max_iter': 2000}`
+* **Decision Tree:** without specific parameters
+
+### Metrics Comparison
+
+| Model | Train Accuracy | Test Accuracy | Gap (Train - Test) |
+| :--- | :--- | :--- | :--- |
+| **Logistic Regression** | 67.6% | 65.7% | +0.019 |
+| **Decision Tree** | 79.2% | 61.5% | +0.177 |
+
+### The main differences:
+
+- In the **logistic regression** model, it achieved a better accuracy (66%). It is very stable because the training (67.6%) and testing (65.7%) scores are very close. This means it learned the patterns correctly without just memorizing the data.
+- The **decision tree** model achieved a lower overall accuracy (62%). This model "memorized" the training data (scoring 79.2%) but performed worse on new data (61.5%). This indicates overfitting. However, it did show a smaller gap in false positive rates between the main racial groups (a 10% gap compared to the logistic regression's 14% gap). 
+
+**In summary:**
+The logistic regression model was better. Even though the decision tree has slightly more balanced numbers regarding race, the fact that it overfitted makes it unreliable for real-world scenarios. The logistic regression is much more robust, consistent, and makes more accurate predictions on new cases.
