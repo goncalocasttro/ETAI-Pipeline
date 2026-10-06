@@ -1,27 +1,26 @@
-# Baseline pipeline configuration.
-# Nothing here is hardcoded in the source files below -- everything tunable lives in this one place.
-
 data:
   path: "data/compas_two_year_recidivism.csv"
   target: "two_year_recid"
-  sensitive_attr: "race"          # excluded from model features, used only to audit fairness
-  # id/COMPAS's-own-score dropped as before, plus the three columns week 3's multicollinearity
-  # check found redundant (see src/data_diagnostics.py + the EDA notebook's VIF walkthrough)
-  drop_columns: ["id", "decile_score", "score_text", "prior_offenses", "age_in_months", "juvenile_total"]
+  sensitive_attr: "race"                            # never a feature; used only for the fairness report
+  drop_columns: ["id", "decile_score", "score_text"]  # kept in the data, never used as features
 
-split:
-  test_size: 0.2
+# Locked test set: never used to fit, tune or choose anything. Do not change once set.
+test_set:
+  size: 0.2
   random_state: 42
 
-# New this week (see Practical/W3/notebooks/01_eda_introduction.ipynb): what src/data_diagnostics.py
-# and src/preprocessing.py need to stay generic instead of hardcoding COMPAS's column names.
+cv:
+  n_splits: 5
+  shuffle: true
+  random_state: 42
+  scoring: "accuracy"
+  n_jobs: 1                                         # -1 = all CPU cores
+
 diagnostics:
   id_column: "id"
-  candidate_predictors: ["sex", "race", "age_cat", "c_charge_degree", "score_text"]
-  # columns that load as text purely because a placeholder token (see placeholder_tokens below)
-  # shows up somewhere in them
   numeric_text_columns: ["priors_count", "prior_offenses"]
-  placeholder_tokens: ["-", "?", "n/a", "N/A", "na", "NA", ""]
+  # "nan" catches real NaNs turned into text by the category cleanup.
+  placeholder_tokens: ["-", "?", "n/a", "N/A", "na", "NA", "", "nan"]
   validity_rules:
     age: {min: 18, max: 100}
     decile_score: {min: 1, max: 10}
@@ -48,28 +47,35 @@ diagnostics:
       low: "Low"
       medium: "Medium"
       high: "High"
-  # multicollinearity casualties (see the EDA notebook's correlation heatmap + VIF section) --
-  # also listed in data.drop_columns above; kept here too so preprocessing.py doesn't need
-  # to reach into the data: section to know what to drop
   redundant_columns: ["prior_offenses", "age_in_months", "juvenile_total"]
 
-# New this week (see Practical/W3/notebooks/02_preprocessing.ipynb): this week's diagnosis-driven,
-# leak-safe preprocessing recipe. encoder/scaler chosen by the empirical grid in that notebook --
-# don't hand-pick a different pair here without re-running the grid.
 preprocessing:
-  encoder: "target"      # winner of the 4x4 empirical grid (onehot/ordinal/count/target x none/standard/minmax/robust),
-  scaler: "standard"     # scored on accuracy across 15 repeated splits -- see 02_preprocessing.ipynb's grid + paired check
+  encoder: "target"                                 # onehot | ordinal | count | target
+  scaler: "robust"                                  # none | standard | minmax | robust
   numeric_features: ["age", "juv_fel_count", "juv_misd_count", "juv_other_count", "priors_count"]
   categorical_features: ["sex", "age_cat", "c_charge_degree"]
-  mnar_indicator_sources: ["priors_count", "c_charge_degree"]
+  mnar_indicator_sources: ["priors_count", "c_charge_degree"]   # get a <col>_was_missing flag
+  random_state: 42                                  # target encoder's internal folds
   imputation:
-    numeric_strategy: "median"        # applies to age, juv_fel_count, juv_misd_count, juv_other_count, priors_count
-    categorical_strategy: "most_frequent"   # applies to sex, age_cat, c_charge_degree
+    numeric_strategy: "median"
+    categorical_strategy: "most_frequent"
 
 model:
-  type: "decision_tree"   # or "logistic_regression"
-  params: {}
-    # max_iter: 2000
+  type: "random_forest" # dummy | logistic_regression | decision_tree | random_forest
+  params:
+    random_state: 42
+
+tuning:
+  enabled: false # true
+  n_trials: 30
+  n_splits: 5                                       # folds that score each candidate
+  random_state: 42                                  # seeds the sampler and those folds
+  # Keys are Pipeline parameter names. Types: int / float (low, high, log) or categorical (choices).
+  search_spaces:
+    decision_tree:
+      model__max_depth: {type: int, low: 1, high: 20}
+      model__min_samples_leaf: {type: int, low: 1, high: 200, log: true}
+      model__criterion: {type: categorical, choices: ["gini", "entropy"]}
 
 output:
-  results_dir: "results"   # each run's full report is saved here as a timestamped .txt file
+  results_dir: "results"

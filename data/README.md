@@ -96,3 +96,34 @@ These were the models created:
 
 **In summary:**
 The logistic regression model was better. Even though the decision tree has slightly more balanced numbers regarding race, the fact that it overfitted makes it unreliable for real-world scenarios. The logistic regression is much more robust, consistent, and makes more accurate predictions on new cases.
+
+
+# Week 3
+
+### Pipeline Improvements
+
+This week, we upgraded the pipeline to make our tests more reliable and accurate:
+* **Added a Baseline Model:** We introduced a Dummy model to see the minimum performance required to actually add value.
+* **New Preprocessing:** Added `Target Encoder` (to handle categories better) and `Robust Scaler` (to handle data outliers).
+* **Advanced Tuning:** Used `Optuna` to automatically find the best parameters (hyperparameter tuning) using nested cross-validation. This prevents models from cheating or memorizing data.
+* **New Model:** Added a Random Forest model to the experiment.
+* **Hidden Test Set:** We locked away 20% of the data to test the final model at the very end.
+
+### Metrics Comparison
+
+| Model | Train Accuracy | Validation Accuracy | Gap (Train - Val) |
+| :--- | :--- | :--- | :--- |
+| **Dummy (Baseline)** | 54.9% | 54.9% | 0.000 |
+| **Decision Tree (Tuned)**| 68.4% | 67.5% | +0.009 |
+| **Logistic Regression** | 67.5% | 67.2% | +0.003 |
+| **Random Forest** | 73.1% | 64.6% | +0.085 |
+
+### The main differences:
+
+- The **Tuned Decision Tree** had a massive improvement. In Week 2, it overfitted heavily (17.7% gap). Thanks to the new tuning process, the gap dropped to just 0.9%. It is now the most accurate model (67.5%).
+- The **Logistic Regression** remains very stable and consistent. It achieved 67.2% accuracy with almost zero gap (0.3%), meaning it generalizes perfectly to new data.
+- The **Random Forest** suffered from overfitting. It memorized the training data (73.1%) but dropped to 64.6% on validation, creating an 8.5% gap. 
+- **Fairness (False Positive Rates):** Both the Decision Tree and Logistic Regression have a 13% gap in false positives between African-American and Caucasian groups. This is a significant improvement over the original COMPAS system, which has a much worse 22% gap.
+
+**In summary:**
+The pipeline upgrades successfully fixed the Decision Tree's overfitting problem from Week 2. Both the **Tuned Decision Tree** and **Logistic Regression** are now excellent, stable choices that perform much better than the baseline and are fairer than the original COMPAS tool.
