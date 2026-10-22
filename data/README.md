@@ -98,7 +98,7 @@ These were the models created:
 The logistic regression model was better. Even though the decision tree has slightly more balanced numbers regarding race, the fact that it overfitted makes it unreliable for real-world scenarios. The logistic regression is much more robust, consistent, and makes more accurate predictions on new cases.
 
 
-# Week 3
+# Week 3 and Week 4
 
 ### Pipeline Improvements
 
