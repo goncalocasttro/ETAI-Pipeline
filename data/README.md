@@ -127,3 +127,34 @@ This week, we upgraded the pipeline to make our tests more reliable and accurate
 
 **In summary:**
 The pipeline upgrades successfully fixed the Decision Tree's overfitting problem from Week 2. Both the **Tuned Decision Tree** and **Logistic Regression** are now excellent, stable choices that perform much better than the baseline and are fairer than the original COMPAS tool.
+
+j
+# Week 5 and Week 6
+
+### Pipeline Improvements
+
+This week, we expanded our model benchmark while keeping the same preprocessing (`Target Encoder` + `Robust Scaler`), 5-fold stratified cross-validation setup, and the 20% locked test set from Week 3:
+* **Added AdaBoost:** Introduced an adaptive boosting ensemble (`adaboost`) using default parameters to test if sequential error correction improves validation accuracy.
+* **Added Oblique Random Forest:** Introduced an `oblique_random_forest` model (which uses linear combinations of features at each split instead of single-feature axis-aligned splits) to evaluate more complex decision boundaries.
+* **Standardized Fixed Configurations:** Evaluated all 6 models with fixed configurations (`Tuning: off`) to compare baseline architectures directly.
+
+### Metrics Comparison
+
+| Model | Train Accuracy | Validation Accuracy | Gap (Train - Val) |
+| :--- | :--- | :--- | :--- |
+| **Dummy (Baseline)** | 54.9% | 54.9% | -0.000 |
+| **Random Forest** | 70.3% | 67.7% | +0.025 |
+| **Decision Tree** | 68.5% | 67.5% | +0.011 |
+| **Logistic Regression** | 67.0% | 66.9% | +0.001 |
+| **AdaBoost (New)** | 67.1% | 66.8% | +0.003 |
+| **Oblique Random Forest (New)** | 75.8% | 64.6% | +0.113 |
+
+### The main differences:
+
+- **Random Forest & Decision Tree** lead the overall performance. With constrained depth (`max_depth=10`), the **Random Forest** achieved the highest validation accuracy (67.7%) with a controlled gap (2.5%), closely followed by the **Decision Tree** (67.5% accuracy, 1.1% gap).
+- **AdaBoost (New)** performed very similarly to **Logistic Regression**. It reached 66.8% validation accuracy with an almost nonexistent gap (0.3%), showing strong stability and zero overfitting right out of the box.
+- **Oblique Random Forest (New)** suffered from heavy overfitting. Because it ran without depth constraints (`params={}`), it memorized the training data (75.8%) and dropped to 64.6% on validation, resulting in an 11.3% gap—the worst generalization among all models.
+- **Fairness (False Positive Rates):** All of our models remain fairer than the original COMPAS score (which has a 22% FPR gap between African-American [0.45] and Caucasian [0.23] groups). Among the new models, **AdaBoost** and **Oblique Random Forest** both recorded a **13% FPR gap** (0.33 vs. 0.20 for AdaBoost; 0.35 vs. 0.23 for Oblique RF). This matches the 13% gap of the **Decision Tree** (0.28 vs. 0.15) and **Random Forest** (0.30 vs. 0.17), and outperforms **Logistic Regression** (18% gap: 0.40 vs. 0.22).
+
+**In summary:**
+Adding the two new models showed that **AdaBoost** is a very stable runner-up that generalizes well (66.8% accuracy, 0.3% gap) and improves fairness over Logistic Regression. Meanwhile, the unconstrained **Oblique Random Forest** overfitted heavily (11.3% gap) and needs hyperparameter tuning (like limiting `max_depth`) to compete with the **Random Forest** (67.7%) and **Decision Tree** (67.5%).

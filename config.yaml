@@ -61,9 +61,8 @@ preprocessing:
     categorical_strategy: "most_frequent"
 
 model:
-  type: "random_forest" # dummy | logistic_regression | decision_tree | random_forest
-  params:
-    random_state: 42
+  type: "adaboost"
+  params: {}
 
 tuning:
   enabled: false # true
@@ -76,6 +75,18 @@ tuning:
       model__max_depth: {type: int, low: 1, high: 20}
       model__min_samples_leaf: {type: int, low: 1, high: 200, log: true}
       model__criterion: {type: categorical, choices: ["gini", "entropy"]}
+    random_forest:
+      model__max_depth: {type: int, low: 2, high: 30}
+      model__min_samples_leaf: {type: int, low: 1, high: 200, log: true}
+      model__max_features: {type: categorical, choices: ["sqrt", 0.5, 1.0]}
+    oblique_random_forest:
+      model__estimator__tree__max_depth: {type: int, low: 2, high: 30}
+      model__estimator__tree__min_samples_leaf: {type: int, low: 1, high: 200, log: true}
+      model__estimator__project__n_components: {type: int, low: 3, high: 10}   # <= number of features
+    adaboost:
+      model__estimator__max_depth: {type: int, low: 1, high: 8}
+      model__n_estimators: {type: int, low: 25, high: 400, log: true}
+      model__learning_rate: {type: float, low: 0.01, high: 1.0, log: true}
 
 output:
   results_dir: "results"
