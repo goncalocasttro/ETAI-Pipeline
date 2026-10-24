@@ -158,3 +158,41 @@ This week, we expanded our model benchmark while keeping the same preprocessing 
 
 **In summary:**
 Adding the two new models showed that **AdaBoost** is a very stable runner-up that generalizes well (66.8% accuracy, 0.3% gap) and improves fairness over Logistic Regression. Meanwhile, the unconstrained **Oblique Random Forest** overfitted heavily (11.3% gap) and needs hyperparameter tuning (like limiting `max_depth`) to compete with the **Random Forest** (67.7%) and **Decision Tree** (67.5%).
+
+
+# Week 7
+
+### Pipeline Improvements
+
+This week, we upgraded our evaluation framework and expanded our model benchmark to get a more complete and honest assessment of model performance:
+* **Expanded Metrics & New Selection Target:** Shifted our primary optimization and selection metric from simple `accuracy` to `roc_auc` (evaluating across `accuracy`, `balanced_accuracy`, `precision`, `recall`, `f1`, `fbeta_2`, `roc_auc`, and `average_precision`). This evaluates how well models rank risk across all thresholds rather than relying on a single fixed cutoff.
+* **Honest Nested Cross-Validation:** Turned on `Optuna` hyperparameter tuning (30 trials × 5 inner folds) inside a 5-fold outer Nested CV loop, including an **optimism check** (`inner_best` vs. `outer_validation`) to ensure zero data leakage or overfitting during tuning.
+* **Added 3 New Models:** Introduced `gradient_boosting`, `hist_gradient_boosting`, and `naive_bayes` alongside our existing tree and ensemble models.
+
+### Metrics Comparison (Nested CV Honest Estimates)
+
+| Model | Untuned ROC AUC | Tuned ROC AUC (Val) | ROC AUC Gap (Train - Val) | Tuned Accuracy | Tuned F1 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Dummy (Floor)** | 0.500 | 0.500 | 0.000 | 54.9% | 0.000 |
+| **Hist Gradient Boosting (New)** | 0.717 | **0.728** | +0.010 | **68.5%** | **0.618** |
+| **Gradient Boosting (New)** | 0.727 | **0.728** | +0.013 | 68.2% | 0.611 |
+| **AdaBoost** | 0.718 | 0.727 | +0.015 | 68.2% | 0.613 |
+| **Random Forest** | 0.683 | 0.725 | +0.022 | 67.9% | 0.612 |
+| **Oblique Random Forest** | 0.683 | 0.725 | +0.021 | 67.7% | 0.609 |
+| **Decision Tree** | 0.609 | 0.716 | +0.015 | 67.3% | 0.593 |
+| **Naive Bayes (New)** | 0.685 | 0.705 | +0.001 | 62.1% | 0.368 |
+
+### The main differences:
+
+- **Boosting Models Take the Lead:** **Hist Gradient Boosting** and **Gradient Boosting** tied for the highest honest validation `roc_auc` (0.728), closely followed by **AdaBoost** (0.727). **Hist Gradient Boosting** also achieved the highest validation accuracy (68.5%) and F1-score (0.618) while keeping the train-validation gap remarkably low (+0.010).
+- **Massive Recovery for Overfitting Models:** Without tuning, **Decision Tree** (0.609 AUC, +0.110 gap), **Random Forest** (0.683 AUC, +0.118 gap), and **Oblique Random Forest** (0.683 AUC, +0.149 gap) overfitted heavily. Optuna's nested tuning (especially constraining `min_samples_leaf` and `max_depth`) eliminated this overfitting, shrinking their gaps to ~1.5%–2.2% and boosting both Random Forest variants to a competitive 0.725 `roc_auc`.
+- **Zero Tuning Optimism:** Across all models, the optimism check (`inner_best` minus `outer_validation`) was between `-0.001` and `+0.001`, proving that our Nested CV pipeline completely prevented hyperparameter overfitting.
+- **Naive Bayes Trade-off:** While **Naive Bayes** generalized with virtually zero gap (+0.001) and improved from 0.685 to 0.705 `roc_auc` via `var_smoothing`, its default 0.5 threshold is overly conservative—yielding high precision (0.743) but very low recall (0.245), resulting in the lowest accuracy (62.1%).
+- **Fairness (False Positive Rates):** Every model substantially improved upon COMPAS's original 22% FPR gap between African-American (0.45) and Caucasian (0.23) groups:
+  - **Gradient Boosting** achieved a **12% gap** (0.28 vs. 0.16).
+  - **AdaBoost** (0.29 vs. 0.17) and **Decision Tree** (0.29 vs. 0.16) achieved a **12%–13% gap**.
+  - **Hist Gradient Boosting** (0.29 vs. 0.15), **Random Forest** (0.30 vs. 0.16), and **Oblique Random Forest** (0.30 vs. 0.16) all recorded a **14% gap**.
+  - **Naive Bayes** had the lowest absolute FPRs (**7% gap**: 0.11 vs. 0.04), though this is a byproduct of its low overall positive prediction rate (24% recall).
+
+**In summary:**
+Switching to `roc_auc` and enabling Nested CV with `Optuna` cured the severe overfitting seen in our tree and forest models while confirming zero tuning leakage. **Hist Gradient Boosting** and **Gradient Boosting** are now our top performers (0.728 `roc_auc`, ~68.5% accuracy), offering the best balance of predictive power, generalization, and reduced racial disparity compared to the original COMPAS score.
