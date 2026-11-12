@@ -196,3 +196,41 @@ This week, we upgraded our evaluation framework and expanded our model benchmark
 
 **In summary:**
 Switching to `roc_auc` and enabling Nested CV with `Optuna` cured the severe overfitting seen in our tree and forest models while confirming zero tuning leakage. **Hist Gradient Boosting** and **Gradient Boosting** are now our top performers (0.728 `roc_auc`, ~68.5% accuracy), offering the best balance of predictive power, generalization, and reduced racial disparity compared to the original COMPAS score.
+
+
+# Week 8
+
+### Pipeline Improvements
+
+This week, we integrated automated feature selection directly into our cross-validation and hyperparameter tuning pipeline, alongside benchmarking a new gradient boosting architecture:
+* **Automated Feature Selection (`VoteSelector`):** Implemented an ensemble voting feature selection step (`VoteSelector`) prior to tuning and tuned its decision threshold (`select__min_votes` $\in \{1, 2, 3\}$) inside our nested loop. Across all models, this aggressive pruning retained only **2 of the 10 features** (`numeric__age` and `numeric__priors_count`).
+* **Addition of XGBoost:** Introduced `xgboost` into the benchmark with Optuna-tuned tree regularizations (`gamma`, `reg_alpha`, `reg_lambda`, `min_child_weight`, and `colsample_bytree`).
+* **Nested CV with Feature Selection:** Validated all models through 5-fold outer Nested CV (30 Optuna trials $\times$ 5 inner folds) to estimate performance without feature selection or tuning leakage.
+
+### Metrics Comparison (Nested CV Honest Estimates)
+
+| Model | Untuned ROC AUC | Tuned ROC AUC (Val) | ROC AUC Gap (Train - Val) | Tuned Accuracy | Tuned F1 | Features Kept |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Dummy (Floor)** | 0.500 | 0.500 | 0.000 | 54.9% | 0.000 | 0 of 10 |
+| **Gradient Boosting** | 0.723 | **0.726** | +0.006 | **68.0%** | 0.612 | 2 of 10 |
+| **XGBoost (New)** | 0.706 | **0.726** | +0.005 | **68.0%** | **0.616** | 2 of 10 |
+| **Hist Gradient Boosting** | 0.709 | 0.725 | +0.008 | **68.0%** | 0.612 | 2 of 10 |
+| **AdaBoost** | 0.714 | 0.723 | +0.009 | 67.7% | 0.613 | 2 of 10 |
+| **Random Forest** | 0.672 | 0.723 | +0.013 | 67.9% | 0.613 | 2 of 10 |
+| **Decision Tree** | 0.656 | 0.718 | +0.015 | 67.7% | 0.605 | 2 of 10 |
+| **Naive Bayes** | 0.704 | 0.708 | +0.001 | 63.2% | 0.412 | 2 of 10 |
+
+### The main differences:
+
+- **Aggressive Dimensionality Reduction:** Every single model converged on keeping only **2 features** (`age` and `priors_count`), discarding the remaining 8. Even with 80% of the input features dropped, predictive capacity remained intact, dropping only marginally from week 7's ceiling (0.728 down to 0.726 `roc_auc`).
+- **Gradient Boosting & XGBoost Lead the Board:** **Gradient Boosting** and the newly added **XGBoost** tied for the top honest validation score at **0.726 ROC AUC** and **68.0% accuracy**. XGBoost achieved the best overall F1-score (0.616) with an exceptionally small train-validation gap (+0.005).
+- **Ensemble Stability and Variance Control:** Tree ensembles (**Gradient Boosting**, **Hist Gradient Boosting**, **Random Forest**, and **AdaBoost**) clustered closely between 0.723 and 0.726 ROC AUC. With feature selection embedded, uncalibrated single trees and random forests showed virtually zero overfitting after tuning (gaps compressed from +0.101–+0.118 down to +0.013–+0.015).
+- **Persistent Naive Bayes Skew:** Tuning `var_smoothing` pushed Naive Bayes to 0.708 ROC AUC with zero gap (+0.001). However, the model remains severely biased toward predicting the negative class at the default 0.5 threshold, resulting in high precision (0.735) but poor recall (0.287) and lower accuracy (63.2%).
+- **Fairness (False Positive Rates):** Racial disparity in false positive rates remained stable and substantially lower than the commercial COMPAS benchmark (which has a 22% gap: 0.45 African-American vs. 0.23 Caucasian):
+  - **Gradient Boosting** and **Hist Gradient Boosting** achieved a **13% gap** (0.29 vs. 0.16).
+  - **Random Forest** (0.30 vs. 0.16) and **Decision Tree** (0.30 vs. 0.16) recorded a **14% gap**.
+  - **AdaBoost** and **XGBoost** recorded a **14%–15% gap** (0.31 vs. 0.16–0.17).
+  - **Naive Bayes** showed the lowest absolute rates due to conservative recall (**8% gap**: 0.13 vs. 0.05).
+
+**In summary:**
+Week 8 proves that the predictive signal in this dataset is concentrated almost entirely in `age` and `priors_count`. By filtering down to these 2 core features via `VoteSelector`, **Gradient Boosting** and **XGBoost** achieve top-tier performance (0.726 ROC AUC, 68.0% accuracy) with faster training times, leaner pipelines, and robust generalization.
